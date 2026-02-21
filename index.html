@@ -1,157 +1,146 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise Scan & Flow - V4</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <style>
-        :root { --primary: #1a2a3a; --gold: #d4af37; --light: #f4f7f9; --danger: #c0392b; }
-        body { font-family: sans-serif; background: var(--light); margin: 0; padding: 10px; }
-        .app-card { max-width: 1000px; margin: auto; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow: hidden; }
-        header { background: var(--primary); color: white; padding: 20px; text-align: center; border-bottom: 5px solid var(--gold); }
-        .section { padding: 20px; border-bottom: 1px solid #eee; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-        input, select { border: 1px solid #d1d9e0; padding: 10px; border-radius: 8px; width: 100%; box-sizing: border-box; }
-        .btn { padding: 12px; border-radius: 8px; border:none; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; }
-        .btn-add { background: var(--primary); width: 100%; margin-top: 15px; }
-        .btn-scan { background: var(--primary); color: var(--gold); border: 2px solid var(--gold); margin-bottom: 10px; }
-        .file-label { display: block; margin-top: 10px; font-size: 0.8em; color: #666; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { text-align: left; font-size: 0.8em; color: #7f8c8d; border-bottom: 2px solid var(--light); padding: 10px 5px; }
-        td { padding: 10px 5px; border-bottom: 1px solid #f1f1f1; font-size: 0.9em; }
-        .view-link { color: var(--gold); text-decoration: none; font-weight: bold; cursor: pointer; }
-        .summary { display: flex; justify-content: flex-end; gap: 20px; padding: 15px 20px; background: var(--primary); color: white; }
-        .actions { padding: 20px; display: flex; gap: 10px; }
-        .excel { background: #1d6f42; flex: 1; }
-    </style>
-</head>
-<body>
+#====================================================================================================
+# Testing Data - Main Agent and testing sub agent both should log testing data below this section
+#====================================================================================================
 
-<div class="app-card">
-    <header><h1>💎 Business Flow Pro</h1><p>Scanner & Archivage PDF</p></header>
-    
-    <div class="section" style="text-align:center;">
-        <button class="btn btn-scan" onclick="document.getElementById('ocr-input').click()">📸 SCANNER (OCR)</button>
-        <input type="file" id="ocr-input" accept="image/*" capture="environment" style="display:none" onchange="processOCR(event)">
-        <div id="status" style="font-size: 0.8em; color: var(--primary);">Prêt</div>
-    </div>
+user_problem_statement: \"Application de gestion d'inventaire et déclaration TVA mensuelle pour une boulangerie\"
 
-    <div class="section">
-        <div class="grid">
-            <input type="text" id="name" placeholder="Désignation" style="grid-column: span 2;">
-            <input type="number" id="ht" placeholder="HT" step="0.01" oninput="syncPrices('HT')">
-            <select id="tva" onchange="syncPrices('HT')">
-                <option value="0.20">TVA 20%</option><option value="0.10">TVA 10%</option><option value="0.055">5.5%</option>
-            </select>
-            <input type="number" id="ttc" placeholder="TTC" step="0.01" oninput="syncPrices('TTC')">
-        </div>
-        
-        <label class="file-label">📄 Joindre un justificatif (PDF, Image) :</label>
-        <input type="file" id="doc-file" accept="image/*,application/pdf">
-        
-        <button class="btn btn-add" onclick="addToInventory()">📦 ENREGISTRER L'OPÉRATION</button>
-    </div>
+backend:
+  - task: \"API Health Check\"
+    implemented: true
+    working: true
+    file: \"/app/backend/server.py\"
+    stuck_count: 0
+    priority: \"high\"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: \"main\"
+        comment: \"Health endpoint /api/health returns healthy status\"
 
-    <div class="section" style="overflow-x:auto;">
-        <div style="display:flex; gap:10px; margin-bottom:10px;">
-            <select id="yearFilter" onchange="renderTable()" style="width:100px;"></select>
-            <select id="monthFilter" onchange="renderTable()" style="width:120px;">
-                <option value="all">Année</option><option value="0">Jan</option><option value="1">Fév</option><option value="2">Mar</option><option value="3">Avr</option><option value="4">Mai</option><option value="5">Juin</option><option value="6">Juil</option><option value="7">Août</option><option value="8">Sep</option><option value="9">Oct</option><option value="10">Nov</option><option value="11">Déc</option>
-            </select>
-        </div>
-        <table>
-            <thead><tr><th>DATE</th><th>NOM</th><th>TTC</th><th>DOC</th><th></th></tr></thead>
-            <tbody id="inventoryBody"></tbody>
-        </table>
-    </div>
+  - task: \"CRUD Inventory Items\"
+    implemented: true
+    working: true
+    file: \"/app/backend/server.py\"
+    stuck_count: 0
+    priority: \"high\"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: \"main\"
+        comment: \"POST/GET/PUT/DELETE inventory items with TVA calculation\"
 
-    <div class="summary">Total TTC: <b id="totalTTC" style="color:var(--gold); font-size:1.4em;">0.00</b>€</div>
-    
-    <div class="actions">
-        <button class="btn excel" onclick="exportToCSV()">📊 EXPORT EXCEL</button>
-    </div>
-</div>
+  - task: \"Monthly Summary TVA\"
+    implemented: true
+    working: true
+    file: \"/app/backend/server.py\"
+    stuck_count: 0
+    priority: \"high\"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: \"main\"
+        comment: \"GET /api/summary returns TVA breakdown by rate\"
 
-<script>
-    let inventory = JSON.parse(localStorage.getItem('biz_v4')) || [];
-    let currentFileData = null;
+  - task: \"CSV Export\"
+    implemented: true
+    working: true
+    file: \"/app/backend/server.py\"
+    stuck_count: 0
+    priority: \"medium\"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: \"main\"
+        comment: \"GET /api/export/csv generates CSV file\"
 
-    // Convertit le fichier sélectionné en texte (Base64) pour le stockage
-    document.getElementById('doc-file').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(event) { currentFileData = event.target.result; };
-        reader.readAsDataURL(file);
-    });
+  - task: \"Invoice Scanner with AI\"
+    implemented: true
+    working: \"NA\"
+    file: \"/app/backend/server.py\"
+    stuck_count: 0
+    priority: \"medium\"
+    needs_retesting: true
+    status_history:
+      - working: \"NA\"
+        agent: \"main\"
+        comment: \"POST /api/scan-invoice with GPT-4o vision - needs real image test\"
 
-    function syncPrices(origin) {
-        const ht = document.getElementById('ht'), ttc = document.getElementById('ttc'), tva = parseFloat(document.getElementById('tva').value);
-        if (origin === 'HT') ttc.value = (parseFloat(ht.value || 0) * (1 + tva)).toFixed(2);
-        else ht.value = (parseFloat(ttc.value || 0) / (1 + tva)).toFixed(2);
-    }
+frontend:
+  - task: \"Tab Navigation (Scanner/Inventaire/TVA)\"
+    implemented: true
+    working: true
+    file: \"/app/frontend/app/index.tsx\"
+    stuck_count: 0
+    priority: \"high\"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: \"main\"
+        comment: \"3 tabs working correctly\"
 
-    async function processOCR(e) {
-        const file = e.target.files[0]; if (!file) return;
-        document.getElementById('status').innerText = "⏳ Analyse...";
-        const { data: { text } } = await Tesseract.recognize(file, 'fra');
-        const amounts = text.match(/\d+[\.,]\d{2}/g);
-        if (amounts) {
-            const max = Math.max(...amounts.map(a => parseFloat(a.replace(',', '.'))));
-            document.getElementById('ttc').value = max.toFixed(2);
-            syncPrices('TTC');
-            document.getElementById('status').innerText = "✅ Détecté : " + max + "€";
-        } else { document.getElementById('status').innerText = "⚠️ Non trouvé"; }
-    }
+  - task: \"Inventory List with Filters\"
+    implemented: true
+    working: true
+    file: \"/app/frontend/app/index.tsx\"
+    stuck_count: 0
+    priority: \"high\"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: \"main\"
+        comment: \"Year/month filters working, items displayed\"
 
-    function addToInventory() {
-        const name = document.getElementById('name').value, ttc = parseFloat(document.getElementById('ttc').value), now = new Date();
-        if (name && ttc) {
-            inventory.push({
-                id: Date.now(), name, ttc, ht: parseFloat(document.getElementById('ht').value),
-                date: now.toLocaleDateString(), year: now.getFullYear(), month: now.getMonth(),
-                file: currentFileData // On sauve le fichier ici
-            });
-            localStorage.setItem('biz_v4', JSON.stringify(inventory));
-            currentFileData = null; document.getElementById('doc-file').value = "";
-            updateYearList(); renderTable(); reset();
-        } else { alert("Nom et prix requis !"); }
-    }
+  - task: \"Add/Edit Item Modal\"
+    implemented: true
+    working: true
+    file: \"/app/frontend/app/index.tsx\"
+    stuck_count: 0
+    priority: \"high\"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: \"main\"
+        comment: \"Modal with date, article, prix HT, TVA rate selection\"
 
-    function renderTable() {
-        const y = parseInt(document.getElementById('yearFilter').value), m = document.getElementById('monthFilter').value, body = document.getElementById('inventoryBody');
-        body.innerHTML = ''; let sum = 0;
-        inventory.filter(i => i.year === y && (m === "all" || i.month === parseInt(m))).forEach(i => {
-            sum += i.ttc;
-            const docBtn = i.file ? `<span class="view-link" onclick="viewDoc('${i.id}')">👁️ Voir</span>` : '-';
-            body.innerHTML += `<tr><td>${i.date}</td><td>${i.name}</td><td>${i.ttc.toFixed(2)}€</td><td>${docBtn}</td><td><button onclick="del(${i.id})" style="color:red; background:none; border:none; cursor:pointer;">✕</button></td></tr>`;
-        });
-        document.getElementById('totalTTC').innerText = sum.toFixed(2);
-    }
+  - task: \"TVA Declaration Page\"
+    implemented: true
+    working: true
+    file: \"/app/frontend/app/index.tsx\"
+    stuck_count: 0
+    priority: \"high\"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: \"main\"
+        comment: \"Shows TVA breakdown by rate and totals\"
 
-    function viewDoc(id) {
-        const item = inventory.find(i => i.id == id);
-        if (item && item.file) {
-            const win = window.open();
-            win.document.write(`<iframe src="${item.file}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-        }
-    }
+  - task: \"Export and Email Functions\"
+    implemented: true
+    working: \"NA\"
+    file: \"/app/frontend/app/index.tsx\"
+    stuck_count: 0
+    priority: \"medium\"
+    needs_retesting: false
+    status_history:
+      - working: \"NA\"
+        agent: \"main\"
+        comment: \"Export CSV and email composer - needs device test\"
 
-    function reset() { document.getElementById('name').value = ''; document.getElementById('ht').value = ''; document.getElementById('ttc').value = ''; }
-    function del(id) { inventory = inventory.filter(i => i.id !== id); localStorage.setItem('biz_v4', JSON.stringify(inventory)); renderTable(); }
-    function updateYearList() {
-        const sel = document.getElementById('yearFilter'), yrs = [...new Set(inventory.map(i => i.year))];
-        if (!yrs.includes(new Date().getFullYear())) yrs.push(new Date().getFullYear());
-        sel.innerHTML = yrs.sort((a,b)=>b-a).map(y => `<option value="${y}">${y}</option>`).join('');
-    }
-    function exportToCSV() {
-        let csv = "\ufeffDate;Nom;HT;TTC\n";
-        inventory.forEach(i => csv += `${i.date};${i.name};${i.ht};${i.ttc}\n`);
-        const b = new Blob([csv], {type:'text/csv'}); const l = document.createElement('a');
-        l.href = URL.createObjectURL(b); l.download = 'compta.csv'; l.click();
-    }
-    updateYearList(); renderTable();
-</script>
-</body>
-</html>
+metadata:
+  created_by: \"main_agent\"
+  version: \"1.0\"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - \"CRUD Inventory Items\"
+    - \"Monthly Summary TVA\"
+    - \"CSV Export\"
+  stuck_tasks: []
+  test_all: false
+  test_priority: \"high_first\"
+
+agent_communication:
+  - agent: \"main\"
+    message: \"Backend API implemented with inventory CRUD, monthly summary, CSV export, and AI invoice scanner. Please test the backend endpoints.\"
