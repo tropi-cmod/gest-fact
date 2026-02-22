@@ -3,70 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventaire Stock & TVA IA</title>
+    <title>Hector Flow - Gestion de Stock IA</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
-        :root { --primary: #1a2a3a; --gold: #d4af37; --bg: #f4f7f9; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 10px; }
-        .app-card { max-width: 1100px; margin: auto; background: white; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); overflow: hidden; }
-        header { background: var(--primary); color: white; padding: 20px; text-align: center; border-bottom: 4px solid var(--gold); }
-        .action-zone { padding: 20px; text-align: center; background: #fff; border-bottom: 1px solid #eee; }
-        .btn { padding: 12px 25px; border-radius: 50px; border: none; cursor: pointer; font-weight: bold; }
-        .btn-scan { background: var(--primary); color: var(--gold); border: 2px solid var(--gold); width: 100%; max-width: 400px; }
-        .inventory-list { padding: 20px; overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 800px; }
-        th { text-align: left; background: #f8f9fa; padding: 12px; font-size: 0.8em; color: #666; border-bottom: 2px solid #eee; }
-        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 0.9em; }
-        .tva-badge { background: #eef2f3; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #555; }
-        .price-ttc { font-weight: bold; color: var(--primary); }
-        #status { font-weight: bold; color: var(--primary); margin-top: 10px; }
+        :root { --sidebar-w: 240px; --primary: #1e293b; --accent: #3b82f6; --gold: #f59e0b; --bg: #f8fafc; }
+        body { font-family: 'Inter', system-ui, sans-serif; margin: 0; background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Menu Latéral Type Hector */
+        nav { width: var(--sidebar-w); background: var(--primary); color: white; display: flex; flex-direction: column; padding: 20px 0; }
+        .logo { padding: 0 20px 30px; font-weight: 800; font-size: 1.4em; border-bottom: 1px solid #334155; margin-bottom: 20px; color: var(--gold); }
+        nav a { padding: 12px 25px; color: #cbd5e1; text-decoration: none; cursor: pointer; transition: 0.2s; font-size: 0.9em; display: flex; align-items: center; gap: 10px; }
+        nav a:hover, nav a.active { background: #334155; color: white; border-left: 4px solid var(--gold); }
+
+        /* Zone Principale */
+        main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+        header { background: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
+        .content { padding: 30px; max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+        
+        /* Cartes et Éléments */
+        .card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+        .btn { padding: 10px 20px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.9em; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-gold { background: var(--gold); color: white; }
+
+        /* Tableaux */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+        th { text-align: left; padding: 12px; border-bottom: 2px solid #f1f5f9; color: #64748b; font-size: 0.75em; text-transform: uppercase; }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.9em; color: #1e293b; }
+        .tva-tag { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+
+        /* Filtres Historique */
+        .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        select, input { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; }
+
+        .hidden { display: none; }
+        #status { color: var(--accent); font-size: 0.85em; font-weight: 600; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-<div class="app-card">
+<nav>
+    <div class="logo">HECTOR FLOW</div>
+    <a onclick="showPage('scan')" id="m-scan" class="active">📸 Scanner Stock</a>
+    <a onclick="showPage('history')" id="m-history">📅 Historique & Rapports</a>
+    <div style="margin-top: auto; padding: 20px;">
+        <a onclick="exportExcel()" style="padding: 10px 0;">📥 Export Excel</a>
+        <a onclick="sendEmail()" style="padding: 10px 0;">📧 Envoi Mail</a>
+    </div>
+</nav>
+
+<main>
     <header>
-        <h1>📦 Inventaire & Détail TVA</h1>
-        <p>Extraction automatique Produit / HT / TVA / TTC</p>
+        <h2 id="page-title">Scanner Stock</h2>
+        <div id="date-now" style="font-size: 0.9em; color: #64748b;"></div>
     </header>
 
-    <div class="action-zone">
-        <button class="btn btn-scan" onclick="document.getElementById('file-selector').click()">📸 SCANNER FACTURE DÉTAILLÉE (PDF/IMG)</button>
-        <input type="file" id="file-selector" accept="image/*,application/pdf" style="display:none" onchange="handleFile(event)">
-        <div id="status">Prêt pour l'analyse</div>
-    </div>
+    <div class="content">
+        <div id="page-scan">
+            <div class="card" style="text-align: center; border: 2px dashed var(--accent);">
+                <input type="file" id="file-selector" accept="image/*,application/pdf" style="display:none" onchange="handleFile(event)">
+                <button class="btn btn-primary" onclick="document.getElementById('file-selector').click()">ANALYSER FACTURE OU PDF</button>
+                <div id="status">En attente d'un document...</div>
+            </div>
 
-    <div class="inventory-list">
-        <table>
-            <thead>
-                <tr>
-                    <th>PRODUIT</th>
-                    <th>PRIX HT</th>
-                    <th>TAUX TVA</th>
-                    <th>MONTANT TVA</th>
-                    <th>TOTAL TTC</th>
-                    <th>ACTION</th>
-                </tr>
-            </thead>
-            <tbody id="stockBody"></tbody>
-        </table>
-    </div>
+            <div class="card">
+                <h3>Derniers articles détectés</h3>
+                <table>
+                    <thead>
+                        <tr><th>Produit</th><th>HT</th><th>TVA</th><th>TTC</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="recentStockBody"></tbody>
+                </table>
+            </div>
+        </div>
 
-    <div style="padding: 20px; background: #1a2a3a; color: white; display: flex; justify-content: space-between; align-items: center;">
-        <div>Articles : <b id="totalCount">0</b></div>
-        <div>Total HT : <b id="totalHT">0.00</b> € | Total TTC : <b id="totalTTC" style="color:var(--gold)">0.00</b> €</div>
-        <button onclick="exportExcel()" style="background:var(--gold); border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-weight:bold;">📊 Export Excel</button>
+        <div id="page-history" class="hidden">
+            <div class="filters card">
+                <select id="yearFilter" onchange="renderHistory()"></select>
+                <select id="monthFilter" onchange="renderHistory()">
+                    <option value="all">Toute l'année</option>
+                    <option value="0">Janvier</option><option value="1">Février</option>
+                    <option value="2">Mars</option><option value="3">Avril</option>
+                    <option value="4">Mai</option><option value="5">Juin</option>
+                    <option value="6">Juillet</option><option value="7">Août</option>
+                    <option value="8">Septembre</option><option value="9">Octobre</option>
+                    <option value="10">Novembre</option><option value="11">Décembre</option>
+                </select>
+                <input type="text" id="search" placeholder="Rechercher un produit..." onkeyup="renderHistory()">
+            </div>
+            
+            <div class="card">
+                <table id="fullHistoryTable">
+                    <thead>
+                        <tr><th>Date</th><th>Produit</th><th>HT</th><th>TVA</th><th>TTC</th></tr>
+                    </thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
-</div>
+</main>
 
 <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    let stock = JSON.parse(localStorage.getItem('biz_inventory_tva')) || [];
+    let inventory = JSON.parse(localStorage.getItem('hector_v1')) || [];
 
+    // NAVIGATION
+    function showPage(pageId) {
+        document.getElementById('page-scan').classList.add('hidden');
+        document.getElementById('page-history').classList.add('hidden');
+        document.getElementById('m-scan').classList.remove('active');
+        document.getElementById('m-history').classList.remove('active');
+        
+        document.getElementById('page-' + pageId).classList.remove('hidden');
+        document.getElementById('m-' + pageId).classList.add('active');
+        document.getElementById('page-title').innerText = pageId === 'scan' ? 'Scanner Stock' : 'Historique & Rapports';
+        if(pageId === 'history') renderHistory();
+    }
+
+    // ANALYSE IA AMÉLIORÉE
     async function handleFile(event) {
         const file = event.target.files[0]; if (!file) return;
-        document.getElementById('status').innerText = "⏳ Lecture du document...";
+        const status = document.getElementById('status');
+        status.innerText = "⏳ Conversion du document...";
+
         const reader = new FileReader();
         reader.onload = async function(e) {
             if (file.type === "application/pdf") {
@@ -80,87 +141,91 @@
                 processText(canvas.toDataURL());
             } else { processText(e.target.result); }
         };
-        reader.readAsDataURL(file);
+        reader.readAsArrayBuffer(file);
     }
 
     async function processText(source) {
-        const status = document.getElementById('status');
-        status.innerText = "🔍 Analyse des lignes et de la TVA...";
+        document.getElementById('status').innerText = "🔍 Scan des lignes produit...";
         try {
             const { data: { lines } } = await Tesseract.recognize(source, 'fra');
-            let added = 0;
-
             lines.forEach(line => {
                 const text = line.text.trim();
-                // Regex améliorée : Cherche Nom + Prix + optionnellement un taux de TVA
-                const match = text.match(/(.+?)(\d+[\.,]\d{2})\s*([0-9,]+%|A|B|C)?/i);
-                
+                const match = text.match(/(.+?)(\d+[\.,]\d{2})/);
                 if (match && text.length > 5 && !text.toUpperCase().includes('TOTAL')) {
-                    const name = match[1].trim();
                     const ht = parseFloat(match[2].replace(',', '.'));
-                    
-                    // Détection intelligente du taux de TVA
-                    let tvaRate = 0.20; // Par défaut 20%
-                    if (text.includes('5,5') || text.includes('5.5')) tvaRate = 0.055;
-                    else if (text.includes('10%') || text.includes(' 10')) tvaRate = 0.10;
-
-                    const tvaAmount = ht * tvaRate;
-                    const ttc = ht + tvaAmount;
-
-                    stock.unshift({
+                    const tvaRate = text.includes('5,5') || text.includes('5.5') ? 0.055 : (text.includes('10') ? 0.10 : 0.20);
+                    inventory.unshift({
                         id: Date.now() + Math.random(),
-                        name: name,
+                        name: match[1].trim(),
                         ht: ht,
-                        rate: (tvaRate * 100).toFixed(1) + "%",
-                        tvaValue: tvaAmount,
-                        ttc: ttc,
-                        date: new Date().toLocaleDateString()
+                        tva: (tvaRate * 100).toFixed(1) + '%',
+                        ttc: ht * (1 + tvaRate),
+                        date: new Date().toLocaleDateString('fr-FR'),
+                        month: new Date().getMonth(),
+                        year: new Date().getFullYear(),
+                        rawDate: new Date()
                     });
-                    added++;
                 }
             });
-
-            localStorage.setItem('biz_inventory_tva', JSON.stringify(stock));
-            renderStock();
-            status.innerText = `✅ ${added} produits ajoutés avec TVA.`;
-        } catch (e) { status.innerText = "❌ Erreur d'analyse."; }
+            localStorage.setItem('hector_v1', JSON.stringify(inventory));
+            renderRecent();
+            document.getElementById('status').innerText = "✅ Scan terminé ! Articles ajoutés.";
+        } catch (e) { document.getElementById('status').innerText = "❌ Erreur scan."; }
     }
 
-    function renderStock() {
-        const body = document.getElementById('stockBody');
-        body.innerHTML = '';
-        let totalHT = 0, totalTTC = 0;
-        stock.forEach(item => {
-            totalHT += item.ht; totalTTC += item.ttc;
-            body.innerHTML += `
-                <tr>
-                    <td><b>${item.name}</b></td>
-                    <td>${item.ht.toFixed(2)} €</td>
-                    <td><span class="tva-badge">${item.rate}</span></td>
-                    <td>${item.tvaValue.toFixed(2)} €</td>
-                    <td class="price-ttc">${item.ttc.toFixed(2)} €</td>
-                    <td><button onclick="del('${item.id}')" style="color:red; background:none; border:none; cursor:pointer;">✕</button></td>
-                </tr>`;
+    // AFFICHAGE
+    function renderRecent() {
+        const body = document.getElementById('recentStockBody');
+        body.innerHTML = inventory.slice(0, 5).map(i => `
+            <tr><td><b>${i.name}</b></td><td>${i.ht.toFixed(2)}€</td><td><span class="tva-tag">${i.tva}</span></td><td><b>${i.ttc.toFixed(2)}€</b></td><td><button onclick="del(${i.id})" style="color:red;border:none;background:none;cursor:pointer;">✕</button></td></tr>
+        `).join('');
+    }
+
+    function renderHistory() {
+        const year = parseInt(document.getElementById('yearFilter').value);
+        const month = document.getElementById('monthFilter').value;
+        const search = document.getElementById('search').value.toLowerCase();
+        
+        const filtered = inventory.filter(i => {
+            const mYear = i.year === year;
+            const mMonth = month === "all" || i.month === parseInt(month);
+            const mSearch = i.name.toLowerCase().includes(search);
+            return mYear && mMonth && mSearch;
         });
-        document.getElementById('totalCount').innerText = stock.length;
-        document.getElementById('totalHT').innerText = totalHT.toFixed(2);
-        document.getElementById('totalTTC').innerText = totalTTC.toFixed(2);
+
+        document.getElementById('historyBody').innerHTML = filtered.map(i => `
+            <tr><td>${i.date}</td><td>${i.name}</td><td>${i.ht.toFixed(2)}€</td><td>${i.tva}</td><td><b>${i.ttc.toFixed(2)}€</b></td></tr>
+        `).join('');
+    }
+
+    function updateFilters() {
+        const years = [...new Set(inventory.map(i => i.year))];
+        if(!years.includes(new Date().getFullYear())) years.push(new Date().getFullYear());
+        document.getElementById('yearFilter').innerHTML = years.sort((a,b)=>b-a).map(y => `<option value="${y}">${y}</option>`).join('');
     }
 
     function del(id) {
-        stock = stock.filter(i => i.id != id);
-        localStorage.setItem('biz_inventory_tva', JSON.stringify(stock));
-        renderStock();
+        inventory = inventory.filter(i => i.id != id);
+        localStorage.setItem('hector_v1', JSON.stringify(inventory));
+        renderRecent(); if(!document.getElementById('page-history').classList.contains('hidden')) renderHistory();
     }
 
+    // EXPORT & MAIL
     function exportExcel() {
-        let csv = "\ufeffProduit;HT;Taux TVA;Montant TVA;TTC;Date\n";
-        stock.forEach(i => csv += `${i.name};${i.ht};${i.rate};${i.tvaValue};${i.ttc};${i.date}\n`);
+        let csv = "\ufeffDate;Produit;HT;TVA;TTC\n";
+        inventory.forEach(i => csv += `${i.date};${i.name};${i.ht};${i.tva};${i.ttc}\n`);
         const b = new Blob([csv], {type:'text/csv'});
-        const l = document.createElement('a');
-        l.href = URL.createObjectURL(b); l.download = 'inventaire_tva.csv'; l.click();
+        const l = document.createElement('a'); l.href = URL.createObjectURL(b); l.download = 'Hector_Inventory.csv'; l.click();
     }
-    renderStock();
+
+    function sendEmail() {
+        let body = "Bonjour, voici l'inventaire :\n\n";
+        inventory.slice(0, 20).forEach(i => body += `${i.date} - ${i.name} : ${i.ttc.toFixed(2)}€\n`);
+        window.location.href = `mailto:?subject=Inventaire Stock Hector&body=${encodeURIComponent(body)}`;
+    }
+
+    document.getElementById('date-now').innerText = new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    updateFilters(); renderRecent();
 </script>
 </body>
 </html>
